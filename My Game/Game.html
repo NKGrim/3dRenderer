@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Game Template</title>
+    <!- -------------------------------------------------------------------------------------------------->
+    <!- This next line references the library of game functions the teacher has written to help with     ->
+    <!- game development.  The student claims no credit for its development.                             ->
+    <!- -------------------------------------------------------------------------------------------------->
+    <script type="text/javascript" src="gamefunctions_V5_0.js" ></script>
+    <style>* { padding: 0; margin: 0; } canvas { background: #eeeeee; display: block; margin: 0 auto; }</style>
+</head>
+<body>
+    <canvas id="myCanvas" width="650" height="650" oncontextmenu="return false;" ></canvas>
+    <text id="debug"></text>
+<script>
+//*********************************************** C R E D I T S ********************************************
+//** STUDENTS AND AP GRADERS - This is the section where you should provide credit for all resources (i.e. - 
+//** images & sound files) used in your game.  GRADERS, as the teacher, I have provided a template as well as
+//** a game library ( referenced above ) as a starting point, but the student's game design, functions,
+//** algorithms, and abstrctions are theirs unless otherwise noted.
+//** IMAGES - Image Name                  URL or Other Source          Credit Given
+//**    
+//** SOUNDS - Sound Name                  URL or Other Source          Credit Given
+//** 
+// **********************************************************************************************************
+
+// *********************************************Game Functions **********************************************
+// Functions STUDENT written that are unique to your game.  Best to list alphabetically.
+// If you had any assistance developing any of these functions, please provide appropriate credit above the
+// function itself as a comment.
+// **********************************************************************************************************
+    
+    
+    
+//***********************************************************************************************************
+//*** Event handlers:
+//*** The following event handlers are written to use functions built in the game library.
+//*** As such, the default event handlers are TEACHER written.  However, the student will
+//*** write all code that utlizes these event handlers - in Step #1 within the draw loop.
+//*** If you want them to work differently than the library, simply replace them with your own code.  
+//*** By default, the key handlers keep track of each key (unique names defined for each) marking them 
+//*** as either true if pressed or false if not pressed.
+
+    function keyDownHandler(e) {
+          myKeys.processDownKey(e);
+    }
+    function keyUpHandler(e) {
+        myKeys.processUpKey(e);
+    }
+    
+//*** The default mouse handlers are TEACHER written.
+//*** The mouse handlers keep track of both WHERE the mouse is at all times AND if any of the buttons are 
+//*** currently pressed or not.
+    function mouseMoveHandler(e) {
+        myKeys.processMouseMove(e);
+    }
+    function mouseUpHandler(e) {
+        myKeys.processMouseUp(e);
+    }
+    function mouseDownHandler(e) {
+        myKeys.processMouseDown(e);
+    }
+
+    
+//**********************Main draw function **************************
+//This is really the code that is run EVERY TIME we do a screen
+//refresh - unless otherwise noted, this is STUDENT code.
+//*******************************************************************
+    let jumping = false;
+    let startJumpTime = -Infinity;
+    let jumpVelo = 250;
+    let grounded = true;
+    let lastFrameTime = 0;
+    function draw() {      
+        
+        
+        let deltaTime = (getTime()-lastFrameTime)/1000;
+        //******* STEP #1 Process any keystrokes / mouse movements *******
+        //*** If you have any Automated movements by your computer
+        //*** "adversaries" I'd place that logic here too.
+        //*** Process clicks - just checking the status of any keys used in game.
+        
+        let sinYaw = sin(-camYaw);
+        let cosYaw = cos(-camYaw);
+
+        let movementSpeed;
+        if(myKeys.shift)movementSpeed = 120 * deltaTime;
+        else movementSpeed = 60 * deltaTime;
+        let jumpTime = 50000 * deltaTime; //seconds * fps
+        if (myKeys.key_w) {
+            playerCube.move(new Vector3(-movementSpeed * sinYaw, 0, movementSpeed * cosYaw));
+        }
+        if (myKeys.key_a) {
+            playerCube.move(new Vector3(-movementSpeed * cosYaw, 0, movementSpeed * -sinYaw));
+        }        
+        if (myKeys.key_s) {
+            playerCube.move(new Vector3(movementSpeed * sinYaw, 0, -movementSpeed * cosYaw));
+        }        
+        if (myKeys.key_d) {
+            playerCube.move(new Vector3(movementSpeed * cosYaw, 0, -movementSpeed * -sinYaw));
+        }
+        if(myKeys.key_p)
+        {
+            wasd //tactical crash to pause log 
+        }
+        if(myKeys.space && grounded)
+        {
+            startJumpTime = getTime();
+            jumping = true;
+            grounded = false;
+            console.log("jump");
+        }
+        if(game.gameIterator % 100 == 0) console.log("fps: " + 1/deltaTime) //log fps every 100 frames (added to ensure performance continued well to know if optimazations were needed)
+
+        if(getTime() - startJumpTime < jumpTime)
+        {
+            console.log("jumpinggggg");
+            let currentTime = getTime() - startJumpTime;
+	        playerCube.move(new Vector3(0,-jumpVelo * deltaTime ,0)) ; 
+        }
+
+        if(!jumping) playerCube.move(new Vector3(0,jumpVelo * deltaTime ,0)) ; 
+        
+        if(getTime() - startJumpTime >= jumpTime) jumping = false;
+
+        if(myKeys.key_c)
+        {
+           canvas.requestPointerLock();
+        }
+        if(myKeys.deltaX != undefined) camYaw+=myKeys.deltaX/250;
+        if(myKeys.deltaY != undefined) camPitch-=myKeys.deltaY/250;
+        for(let i = 0; i < allObjects.length; i++)
+        {
+            let obj = allObjects[i];
+            if(obj == playerCube) continue;
+            let collisionCheck = checkCollision(playerCube, obj);
+            if(collisionCheck.collision)
+            {
+                let move = collisionCheck.axis.multiplyByNumber(collisionCheck.depth);
+                move = fixAxisDirection(playerCube, obj, move);
+                if(move.y < 0) grounded = true;
+                playerCube.move(move);
+            }
+        }
+
+        camPosition.x = -playerCube.midPoint.x;
+        camPosition.y = -playerCube.midPoint.y + 15;
+        camPosition.z = -playerCube.midPoint.z;
+        
+
+        camPitch = clamp(camPitch, 1.5708, -1.5708); //set camera pitch rotation limit to -90 and 90 deg in radians
+	
+
+    //******************** STEP #2 Any game logic ***********************
+           
+           
+    //************* STEP #3 Draw all game objects on the screen *********
+        //FIRST, Clear the Screen to prepare for a repaint
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for(let obj of allObjects)
+        {
+            obj.rotation.y += obj.rotationSpeed.y;
+            obj.rotation.x += obj.rotationSpeed.x;
+            obj.rotation.z += obj.rotationSpeed.z;
+            obj.move(obj.movementSpeed);
+	        if(!obj.renderObj) continue;
+
+            let faces = obj.faces; 
+            ctx.strokeStyle = obj.color;
+            ctx.fillStyle = obj.color;
+
+            let rotYMat = [];
+            let rotXMat = [];
+            let rotZMat = [];
+
+            let sinY = sin(obj.rotation.y);
+            let cosY = cos(obj.rotation.y);
+        
+            rotYMat.push([cosY, 0.0, -sinY]);
+            rotYMat.push([0.0, 1.0, 0.0]);
+            rotYMat.push([sinY, 0.0, cosY]);
+
+            let sinX = sin(obj.rotation.x);
+            let cosX = cos(obj.rotation.x);
+
+            rotXMat.push([1.0, 0.0, 0.0]);
+            rotXMat.push([0.0,cosX, -sinX]);
+            rotXMat.push([0.0, sinX, cosX]);
+
+            let sinZ = sin(obj.rotation.z);
+            let cosZ = cos(obj.rotation.z);
+
+            rotZMat.push([cosZ, sinZ, 0.0]);
+            rotZMat.push([-sinZ, cosZ, 0]);
+            rotZMat.push([0.0, 0.0, 1.0]);
+
+            let yawRotMat = [];
+            yawRotMat.push([cosYaw, 0.0, sinYaw]);
+            yawRotMat.push([0.0, 1.0, 0.0]);
+            yawRotMat.push([-sinYaw, 0.0, cosYaw]);
+
+            let sinPitch = sin(-camPitch);
+            let cosPitch = cos(-camPitch);
+
+            let pitchRotMat = [];
+            pitchRotMat.push([1.0, 0.0, 0.0]);
+            pitchRotMat.push([0.0,cosPitch, -sinPitch]);
+            pitchRotMat.push([0.0, sinPitch, cosPitch]);
+
+            for(let j = 0; j < faces.length; j++)
+            {
+                ctx.beginPath();
+                ctx.lineWidth = 1;
+                let face = faces[j];
+                let vertex1 = face[0];
+                let coords1 = projectVertex(vertex1, rotYMat, rotXMat, rotZMat, yawRotMat, pitchRotMat);
+                ctx.moveTo(coords1[0], coords1[1]);
+                for(let k = 1; k < face.length; k++)
+                {
+                    let vertex = face[k];
+                    let coords = projectVertex(vertex, rotYMat, rotXMat, rotZMat, yawRotMat, pitchRotMat);
+                    let x = coords[0];
+                    let y = coords[1];
+                    ctx.lineTo(x,y); //try drawing in order of distance of object from me? might allow for fill...
+                }
+                let lastCoords = projectVertex(face[face.length-1], rotYMat, rotXMat, rotZMat, yawRotMat, pitchRotMat);
+                ctx.moveTo(coords1[0], coords1[1]);
+                ctx.lineTo(lastCoords[0], lastCoords[1]);
+                //ctx.fill();
+                /*else*/ ctx.stroke();
+            }
+        }
+
+    
+
+    //Then, draw the background image.
+    //bg.draw();
+
+    //Now, draw any ACTIVE images.
+    //yellowCircle.draw();
+   
+    game.gameIterate(); //*** Teacher provided code - required for game library to work properly.
+    requestAnimationFrame(draw); //*** Teacher provided code - keep this line as it is required for a fluid repainting of the canvas.
+    lastFrameTime = getTime();
+}
+
+//**************************************************************************************
+// *********************** Begin Main portion of program *******************************
+//**************************************************************************************
+//** You can actually think of this as the initialization phase of the program.  This is
+//** where you first load your images and create any variables you'll use throughout the
+//** rest of the program.
+//** ALL of this code is teacher provided and should not be changed.  Student code should
+//** go in STUDENT SECTION marked below.
+//** Because this code is NOT in a function, it is the first thing to run and only runs 
+//** ONCE.  The very last thing this code does is call our game loop ( which is the 
+//** draw() funciton.
+//***************************************************************************************
+
+    //*** DO NOT remove these two variables.  
+    //*** They are what help us "reference" the canvas and "paint" on it.
+    var canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+
+    //* Variables that determine how fast (and if) the background moves.  If the background
+    //* does NOT move set both to 0 - this is the default.
+    //game.bgDX = -1;
+    //game.bgDY = 0;
+    
+    //*** Defining the EVENT LISTENERS - looks for any keybord key being pressed and released
+    //*** Note that it is in these EventHandler functions that you actually capture WHICH key
+    //*** was pressed or released.  For each key you are interested in you then perform specific
+    //*** actions.  In the approach I have here we are simply indicating if the key is pressed or
+    //*** not by changing the related keypressed variable to true or false.  Then we take
+    //*** actions later based on these variables.
+
+    document.addEventListener("keydown", keyDownHandler, false);
+    document.addEventListener("keyup", keyUpHandler, false);
+    document.addEventListener("mousemove", mouseMoveHandler, false);
+    document.addEventListener("mousedown", mouseDownHandler, false);
+    document.addEventListener("mouseup", mouseUpHandler, false);
+
+    //*** Create the game Object - Always have this declared as it has
+    //*** important properies other areas depend upon.
+    var game = new GameMaster();
+    //*** Object that holds all keypress and release data. 
+    var myKeys = new KeysPresses(); 
+    
+    //****************STUDENT INITIALIZATION CODE SECTION ****************
+    // ************* Loading/creating your characters, background,
+    // ***  and terrain.  This is all what I would call "pre-processing
+    // *** Kind of all the setup work that must occur BEFORE we actually
+    // *** get into our game loop.
+    // ******************************************************************
+
+    class Vector3
+    {
+        constructor(x=0,y=0,z=0)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+        
+        log()
+        {
+            console.log("x: " + this.x + ", y: " + this.y + ", z: " + this.z);
+        }
+
+        length()
+        {
+            return Math.sqrt(Math.pow(this.x,2) + Math.pow(this.y,2) + Math.pow(this.z,2))
+        }
+        normalize()
+        {
+            let len = this.length();
+            this.x = this.x/len;
+            this.y = this.y/len;
+            this.z = this.z/len;
+        }
+        toList()
+        {
+            return [this.x,this.y,this.z]
+        }
+        inverse()
+        {
+            let x = this.x * -1;
+            let y = this.y * -1;
+            let z = this.z * -1;
+            return new Vector3(x,y,z);
+        }
+        multiplyByNumber(n)
+        {
+            let x = this.x * n;
+            let y = this.y* n;
+            let z = this.z * n;
+            return new Vector3(x,y,z);
+        }
+    }
+
+    function dotProd(vec1, vec2)
+    {
+        return (vec1.x*vec2.x) + (vec1.y*vec2.y) + (vec1.z*vec2.z);
+    }
+
+    function crossProd(a,b)
+    {
+        return new Vector3(a.y*b.z-a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+    }
+    function subtractVectors(a,b)
+    {
+        return new Vector3(a.x-b.x, a.y-b.y, a.z, b.z);
+    }
+    
+    function projectOnAxis(verts, axis) //project to axis for SAT based collision checks
+    {
+        let min = dotProd(verts[0], axis);
+        let max = min;
+
+        for(let i = 1; i < verts.length; i++)
+        {
+            let p = dotProd(verts[i], axis);
+            min = Math.min(min, p);
+            max = Math.max(max, p);
+        }
+        return [min,max];
+    }
+
+    function matrixMultiplication(mat1, mat2)
+    {
+        let ans = [];
+        for(let row = 0; row < mat1.length; row++)
+        {
+            ans.push([]);
+            for(let col = 0; col < mat2[0].length; col++)
+            {
+                var dotProd = 0;
+                for(let i = 0; i < mat1[row].length; i++)
+                {
+                    dotProd += mat1[row][i] * mat2[i][col]
+                }
+                ans[row].push(dotProd);
+            }
+        }
+        return ans;
+    }
+    function transposeMatrix(mat)
+    {
+        for(let i = 0; i < mat.length; i++)
+        {
+            for(let j = 0; j < mat.length; j++)
+            {
+                mat[i][j] *= -1;
+            }
+        }
+    }
+    function projectVertex(vertex, rotYMat, rotXMat, rotZMat, yawRotMat, pitchRotMat, useCamera = true)
+    {
+        let temp = [vertex.x, vertex.y, vertex.z];
+
+        temp = vectorMatrixMult3x3(temp, rotXMat);
+        temp = vectorMatrixMult3x3(temp, rotYMat);
+        temp = vectorMatrixMult3x3(temp, rotZMat);
+        if(useCamera)
+        {
+            temp[2] += camPosition.z;
+            temp[0] += camPosition.x;
+            temp[1] += camPosition.y;
+
+            let camRotMat = matrixMultiplication(pitchRotMat, yawRotMat);
+            temp = vectorMatrixMult3x3(temp, camRotMat);
+        }
+        else
+        {
+            return new Vector3(temp[0], temp[1], temp[2]);
+        } 
+        
+                
+        let projectedVert = vectorMatrixMult4x4(temp.concat(1.0), projectionMatrix);
+        let x = projectedVert[0];
+        let y = projectedVert[1];
+        let w = projectedVert[3];
+
+        if(w>0)
+        {
+            x/=w;
+            y/=w;
+        }
+        x+=1;
+        x*= .5*canvas.width;
+            
+
+        y+=1;
+        y*= .5*canvas.height;
+        return([x,y]);
+    }
+
+
+    //THIS FUNCTION WAS TAKEN FROM TUTORIAL LISTED ABOVE
+    function vectorMatrixMult4x4(v, m)
+    { 
+        let tmp = [0.0, 0.0, 0.0, 0.0];
+        tmp[0] = v[0]*m[0][0] + v[1]*m[0][1] + v[2]*m[0][2] + v[3]*m[0][3];
+        tmp[1] = v[0]*m[1][0] + v[1]*m[1][1] + v[2]*m[1][2] + v[3]*m[1][3];
+        tmp[2] = v[0]*m[2][0] + v[1]*m[2][1] + v[2]*m[2][2] + v[3]*m[2][3];
+        tmp[3] = v[0]*m[3][0] + v[1]*m[3][1] + v[2]*m[3][2] + v[3]*m[3][3];
+        return tmp;
+    }
+
+    //THIS FUNCTION WAS TAKEN FROM TUTORIAL LISTED ABOVE
+    function vectorMatrixMult3x3(v, m)
+    {
+        let tmp = [0.0, 0.0, 0.0];
+  
+        tmp[0] = v[0]*m[0][0] + v[1]*m[0][1] + v[2]*m[0][2];
+        tmp[1] = v[0]*m[1][0] + v[1]*m[1][1] + v[2]*m[1][2];
+        tmp[2] = v[0]*m[2][0] + v[1]*m[2][1] + v[2]*m[2][2];
+  
+        return tmp;
+    }
+    function clamp(value, max, min)
+    {
+        if(value > max)return max;
+        if(value < min)return min;
+        return value;
+    }
+    function distanceBetweenObjects(obj1, obj2)
+    {
+        let mid1 = obj1.midPoint;
+        let mid2 = obj2.midPoint;
+        let beforeRoot = Math.abs(Math.pow(mid1.x - mid2.x, 2) + Math.pow(mid1.y - mid2.y, 2) + Math.pow(mid1.z - mid2.z, 2));
+        return Math.sqrt(beforeRoot);
+    }
+    
+
+    let projectionMatrix = [];
+
+    let FOV = .5 / Math.tan(Math.PI/6.0);
+    let aspectRatio = canvas.width/canvas.height;
+
+    let camPosition = new Vector3(0,0,200);
+    let farPlane = camPosition.z * 10;
+    let nearPlane = camPosition.z / 10;
+
+    let camYaw = 0;
+    let camPitch = 0;
+
+    projectionMatrix.push([FOV*aspectRatio, 0.0, 0.0, 0.0]);
+    projectionMatrix.push([0.0, FOV, 0.0, 0.0]);
+    projectionMatrix.push([0.0, 0.0, -(farPlane+nearPlane) / (farPlane-nearPlane), -2*(farPlane*nearPlane) / (farPlane-nearPlane) ]);
+    projectionMatrix.push([0.0, 0.0, 1, 0]);
+
+
+    var allObjects = [];
+    class Object3D
+    {
+        constructor(midPoint = new Vector3(), height = 50, width = 50, depth = 50, rotation = new Vector3(), rotationSpeed = new Vector3(), movementSpeed = new Vector3(),renderObj = true,color = "black", name = "Object3D")
+        {
+            let vertices = [];
+            //                              |width|           |height|            |depth|
+            vertices.push( new Vector3(midPoint.x-width, midPoint.y-height, midPoint.z+depth) );
+            vertices.push( new Vector3(midPoint.x+width, midPoint.y-height, midPoint.z+depth) );
+            vertices.push( new Vector3(midPoint.x+width, midPoint.y+height, midPoint.z+depth) );
+            vertices.push( new Vector3(midPoint.x-width, midPoint.y+height, midPoint.z+depth) );
+    
+            vertices.push( new Vector3(midPoint.x-width, midPoint.y-height, midPoint.z-depth) );
+            vertices.push( new Vector3(midPoint.x+width, midPoint.y-height, midPoint.z-depth) );
+            vertices.push( new Vector3(midPoint.x+width, midPoint.y+height, midPoint.z-depth) );
+            vertices.push( new Vector3(midPoint.x-width, midPoint.y+height, midPoint.z-depth) );
+
+            let faces = [];
+
+            faces.push([vertices[0], vertices[1], vertices[2], vertices[3]]); //  front
+            faces.push([vertices[4], vertices[5], vertices[6], vertices[7]]); // back
+            faces.push([vertices[4], vertices[5], vertices[1], vertices[0]]); // top
+            faces.push([vertices[3], vertices[2], vertices[6], vertices[7]]); // bottom
+            faces.push([vertices[4], vertices[0], vertices[3], vertices[7]]); // left
+            faces.push([vertices[1], vertices[5], vertices[6], vertices[2]]); // right
+
+            this.vertices = vertices;
+            this.faces = faces;
+
+            this.midPoint = midPoint;
+            this.width = width; 
+            this.height = height;
+            this.depth = depth;
+            this.rotation = rotation;
+	        this.rotationSpeed = rotationSpeed;
+            this.movementSpeed = movementSpeed;
+            this.color = color;
+            this.name = name;
+	        this.renderObj = renderObj;
+	    
+            //let insideOffset = 5;
+            //if(!this.name.includes("inside"))allObjects.push(new Object3D(midPoint, height-insideOffset, width-insideOffset, depth-insideOffset, rotation, rotationSpeed, movementSpeed, renderObj, color, name + "inside"));
+       
+        }
+
+        log()
+        {
+            console.log(this.name);
+            console.log(this.color);
+            console.log(this.rotationSpeed);
+        }
+
+        getRotatedVertices()
+        {
+            let sinY = sin(this.rotation.y);
+            let cosY = cos(this.rotation.y);
+            
+            let rotYMat = [];
+            let rotXMat = [];
+            let rotZMat = [];
+
+            rotYMat.push([cosY, 0.0, -sinY]);
+            rotYMat.push([0.0, 1.0, 0.0]);
+            rotYMat.push([sinY, 0.0, cosY]);
+
+            let sinX = sin(this.rotation.x);
+            let cosX = cos(this.rotation.x);
+
+            rotXMat.push([1.0, 0.0, 0.0]);
+            rotXMat.push([0.0,cosX, sinX]);
+            rotXMat.push([0.0, -sinX, cosX]);
+
+            let sinZ = sin(this.rotation.z);
+            let cosZ = cos(this.rotation.z);
+
+            rotZMat.push([cosZ, sinZ, 0.0]);
+            rotZMat.push([-sinZ, cosZ, 0]);
+            rotZMat.push([0.0, 0.0, 1.0]);
+
+            let ans = [];
+            for(let face of this.faces)
+            {
+                for(let vert of face)
+                {
+                    ans.push(projectVertex(vert, rotYMat, rotXMat, rotZMat, [], [], false));
+                }
+            }
+            return ans;
+        }
+
+        recalculateVertices()
+        {
+            let vertices = [];
+
+            vertices.push( new Vector3(this.midPoint.x-this.width, this.midPoint.y-this.height, this.midPoint.z+this.depth) );
+            vertices.push( new Vector3(this.midPoint.x+this.width, this.midPoint.y-this.height, this.midPoint.z+this.depth) );
+            vertices.push( new Vector3(this.midPoint.x+this.width, this.midPoint.y+this.height, this.midPoint.z+this.depth) );
+            vertices.push( new Vector3(this.midPoint.x-this.width, this.midPoint.y+this.height, this.midPoint.z+this.depth) );
+    
+            vertices.push( new Vector3(this.midPoint.x-this.width, this.midPoint.y-this.height, this.midPoint.z-this.depth) );
+            vertices.push( new Vector3(this.midPoint.x+this.width, this.midPoint.y-this.height, this.midPoint.z-this.depth) );
+            vertices.push( new Vector3(this.midPoint.x+this.width, this.midPoint.y+this.height, this.midPoint.z-this.depth) );
+            vertices.push( new Vector3(this.midPoint.x-this.width, this.midPoint.y+this.height, this.midPoint.z-this.depth) );
+
+            let faces = [];
+
+            faces.push([vertices[0], vertices[1], vertices[2], vertices[3]]); //  front
+            faces.push([vertices[4], vertices[5], vertices[6], vertices[7]]); // back
+            faces.push([vertices[4], vertices[5], vertices[1], vertices[0]]); // top
+            faces.push([vertices[3], vertices[2], vertices[6], vertices[7]]); // bottom
+            faces.push([vertices[4], vertices[0], vertices[3], vertices[7]]); // left
+            faces.push([vertices[1], vertices[5], vertices[6], vertices[2]]); // right
+
+            this.vertices = vertices;
+            this.faces = faces;
+        }
+
+        move(displacement)
+        {
+            this.midPoint = new Vector3(this.midPoint.x + displacement.x, this.midPoint.y + displacement.y, this.midPoint.z + displacement.z);
+            this.recalculateVertices();
+        }
+        moveTo(position)
+        {
+            this.midPoint = position;
+            this.recalculateVertices();
+        }
+
+        getFaceNormals()
+        {
+            let normals = [];
+            for(let face of this.faces)
+            {
+                let v1 = face[0];
+                let v2 = face[1];
+                let v3 = face[2];
+
+                let sinY = sin(this.rotation.y);
+                let cosY = cos(this.rotation.y);
+                
+                let rotYMat = [];
+                let rotXMat = [];
+                let rotZMat = [];
+
+                rotYMat.push([cosY, 0.0, -sinY]);
+                rotYMat.push([0.0, 1.0, 0.0]);
+                rotYMat.push([sinY, 0.0, cosY]);
+
+                let sinX = sin(this.rotation.x);
+                let cosX = cos(this.rotation.x);
+
+                rotXMat.push([1.0, 0.0, 0.0]);
+                rotXMat.push([0.0,cosX, sinX]);
+                rotXMat.push([0.0, -sinX, cosX]);
+
+                let sinZ = sin(this.rotation.z);
+                let cosZ = cos(this.rotation.z);
+
+                rotZMat.push([cosZ, sinZ, 0.0]);
+                rotZMat.push([-sinZ, cosZ, 0]);
+                rotZMat.push([0.0, 0.0, 1.0]);
+
+
+                v1 = projectVertex(v1, rotYMat, rotXMat, rotZMat, [], [], false);
+                v2 = projectVertex(v2, rotYMat, rotXMat, rotZMat, [], [], false);
+                v3 = projectVertex(v3, rotYMat, rotXMat, rotZMat, [], [], false);
+
+                let edge1 = subtractVectors(v2, v1);
+                let edge2 = subtractVectors(v3, v1);
+                let crossProduct = crossProd(edge1, edge2);       
+                       
+                crossProduct.normalize();
+
+                normals.push(crossProduct);
+            }
+            return normals;
+        }
+
+        getEdgeDirections()
+        {
+            let edges = [];
+            for(let face of this.faces)
+            {
+                for(let i = 0; i < face.length; i++)
+                {
+                    let vert0 = face[i];
+                    let vert1 = face[(i+1)%face.length];
+                    let edge = subtractVectors(vert1, vert0);
+                    edge.normalize();
+                    edge.normalize();
+                    edges.push(edge);
+                }
+            }
+            return edges;
+        }
+    }
+    function getCrossAxesOfEdges(edgesA, edgesB)
+    {
+        let axes = [];
+        for(let edgeA of edgesA)
+        {
+            for(let edgeB of edgesB)
+            {
+                let axis = crossProd(edgeA, edgeB);
+                if(axis.length > 1e-6) axes.push(axis.normalize());
+            }
+        }
+        return axes;
+    }
+    function overlap(intervalA, intervalB)
+    {
+        return !(intervalA[1] < intervalB[0] || intervalB[1] < intervalA[0]);
+    }
+
+    function fixAxisDirection(objA, objB, axis) 
+    {
+        
+        let centerA;
+        if(objA.midPoint != null) 
+        {
+            centerA = objA.midPoint;
+        }
+        let centerB = objB.midPoint;
+        let dir = new Vector3(centerB.x - centerA.x, centerB.y - centerA.y, centerB.z - centerA.z)
+        let dot = dotProd(axis, dir);
+        return dot > 0 ? axis.inverse() : axis;
+    }
+
+    function checkCollision(objA, objB)
+    {
+        let axes = [];
+        axes.push(...objA.getFaceNormals());
+        axes.push(...objB.getFaceNormals());
+        axes.push(...getCrossAxesOfEdges(objA.getEdgeDirections(), objB.getEdgeDirections()));
+
+        let minOverlap = Infinity;
+        let minOverlapAxis = new Vector3();
+
+        for(let axis of axes)
+        {
+            let projA = projectOnAxis(objA.getRotatedVertices(), axis);
+            let projB = projectOnAxis(objB.getRotatedVertices(), axis);
+
+            if(!overlap(projA, projB))
+            {
+                return {collision: false, depth: 0, axis: null};
+            }
+            let overlapDepth = Math.min(projA[1], projB[1]) - Math.max(projA[0], projB[0]);
+            if(overlapDepth < minOverlap)
+            {
+                minOverlap = overlapDepth;
+                minOverlapAxis = axis;
+            }
+        }
+        return {collision: true, depth: minOverlap, axis: minOverlapAxis};
+    }
+
+    function sin(x)
+    {
+	    return Math.sin(x);
+    }
+    function cos(x)
+    {
+	    return Math.cos(x);
+    }
+    function getTime()
+    {
+        return Date.now()-startTime;
+    }
+
+
+    /* PLACEHOLDER BACKGROUND AND IMAGE
+    var imgBackground = new Image();
+    imgBackground.src = game.imageDir + "stars.png";
+    var bg = new ScrollingBackGround(0,0,300,168,1200,600,imgBackground);
+    
+    var imgyellowCircle = new Image();
+    imgyellowCircle.src = game.imageDir + "yellowCircle.png";
+    var yellowCircle = new Sprite(100,100, 32,32,100,100,imgyellowCircle);
+    */
+
+    let midPoint = new Vector3(0,-100,0);
+    let rotation = new Vector3();
+    let rotationSpeed = new Vector3(0,0.00,0);
+    let startCube = new Object3D(midPoint, 50, 50, 50, rotation, rotationSpeed, new Vector3(),true, "red", "default");
+
+    midPoint = new Vector3(0,50,0);
+    let rotation2 = new Vector3();
+    let rotationSpeed2 = new Vector3(0,-0.01,0);
+    let cube2 = new Object3D(midPoint, 50,50,50, rotation2 , rotationSpeed2, new Vector3(),true, "black", "bottom");
+
+    midPoint = new Vector3(-100, 50, 0);
+    let platform = new Object3D(midPoint, 20, 50, 20, new Vector3(), new Vector3(), new Vector3, true, "green", "platform");
+
+    midPoint = new Vector3(0,100, 0);
+    let floor = new Object3D(midPoint, 10, 10000000000, 1000000000, new Vector3(), new Vector3(), new Vector3, false, "black", "floor");
+
+    var playerCube = new Object3D(new Vector3(0,25,-200), 30,10,10, new Vector3(), new Vector3(), new Vector3(), false, "blue", "player");
+
+    let startTime = Date.now(); //get start time of program
+
+
+    allObjects.push(startCube);
+    allObjects.push(cube2);
+    allObjects.push(platform);
+    allObjects.push(floor);
+
+    let mouseX = 0;
+    let mouseY = 0;
+    let fps = 0;
+
+    
+    //****************************** Final Image Load Section ****************
+    //** OK - this is odd, but there is a reason for this...
+    //** Images can take a while to load - at least in computer time, so
+    //** we want to make sure they have all loaded BEFORE we actually 
+    //** start the game. For this reason we don't call the draw() function
+    //** (which is our game loop) until the last image has loaded.  
+    //** The onload is an event is triggered when the last image variable 
+    //** lastImage is actually loaded.  At that point, we know it is safe call 
+    //** the draw() function - which starts our gameloop.
+    //** ****** DO NOT change this code. DO NOT erase lastImage.png ******
+    //** **********************************************************************
+
+    var lastImage = new Image();
+    lastImage.src = game.imageDir + "lastImage.png";
+    lastImage.onload = function() 
+    {
+        draw(); //This calls the draw() function - which is our game loop
+    };
+
+
+</script>
+
+</body>
+</html>
